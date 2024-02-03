@@ -20,4 +20,10 @@ export class UserService {
     await this.userRepository.save(newUser);
     return newUser;
   }
+
+  async findUserByMobileNumber(
+    mobileNumber: string,
+  ): Promise<User | undefined> {
+    return this.userRepository.findOneBy({ mobileNumber });
+  }
 }
