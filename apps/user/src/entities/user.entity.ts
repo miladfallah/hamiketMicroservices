@@ -1,8 +1,13 @@
 // src/user/entities/user.entity.ts
 
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
-import { IsEmail, IsNotEmpty, IsString, IsBoolean } from 'class-validator';
-import { Gender, UserType } from '@app/common/Enums';
+import { Entity, PrimaryGeneratedColumn, Column, Unique } from 'typeorm';
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import {
+  ActiveStatus,
+  Gender,
+  HideHelpStatus,
+  UserType,
+} from '@app/common/Enums';
 @Entity('user')
 export class User {
   @PrimaryGeneratedColumn() // Enforce uniqueness for id
@@ -36,6 +41,7 @@ export class User {
   @Column()
   @IsString()
   @IsNotEmpty()
+  @Unique(['username'])
   username: string;
 
   @Column()
@@ -59,17 +65,14 @@ export class User {
   @IsString()
   picture: string;
 
-  @Column()
-  @IsBoolean()
-  hideHelp: boolean;
+  @Column({ type: 'enum', enum: HideHelpStatus, default: HideHelpStatus.True })
+  hideHelp: HideHelpStatus;
 
   @Column()
   lastSeen: number;
 
-  @Column()
-  @IsBoolean()
-  @IsNotEmpty()
-  active: boolean;
+  @Column({ type: 'enum', enum: ActiveStatus, default: ActiveStatus.INACTIVE })
+  active: ActiveStatus;
 
   @Column()
   @IsNotEmpty()

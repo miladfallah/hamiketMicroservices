@@ -1,7 +1,10 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
+  HttpException,
+  HttpStatus,
   Logger,
   Post,
   ValidationPipe,
@@ -10,6 +13,7 @@ import { UserService } from './user.service';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { User } from './entities/user.entity';
 import { MessagePattern } from '@nestjs/microservices';
+import { ActiveStatus, HideHelpStatus, UserType } from '@app/common/Enums';
 
 @Controller('user')
 export class UserController {
@@ -23,10 +27,40 @@ export class UserController {
   }
 
   @Post()
-  create(
+  async create(
     @Body(new ValidationPipe()) createUserDto: CreateUserDto,
   ): Promise<User> {
-    return this.userService.create(createUserDto);
+    try {
+      const nowDate: number = new Date().getTime() / 1000;
+
+      const user = await this.userService.create({
+        ...createUserDto,
+        // Set default values
+        picture: '',
+        lastSeen: -1,
+        active: ActiveStatus.INACTIVE,
+        userType: UserType.Customer,
+        hideHelp: HideHelpStatus.True,
+        createdAt: nowDate,
+        updatedAt: nowDate,
+      });
+
+      return user;
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        // Handle conflict (username already taken) error
+        throw new HttpException(
+          { message: 'Username is already taken' },
+          HttpStatus.CONFLICT,
+        );
+      } else {
+        // Handle other errors
+        throw new HttpException(
+          { message: 'Internal Server Error' },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    }
   }
 
   @MessagePattern({ cmd: 'checkUserPasswordStatus' })

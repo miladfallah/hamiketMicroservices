@@ -15,7 +15,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
         name: 'USER_SERVICE',
         transport: Transport.RMQ,
         options: {
-          urls: ['amqp://localhost:5672'], // Replace with your RabbitMQ server URL
+          urls: ['http://localhost:5672'], // Replace with your RabbitMQ server URL
           queue: 'user_queue',
           queueOptions: {
             durable: false,
@@ -26,5 +26,6 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
   ],
   controllers: [UserController],
   providers: [UserService],
+  exports: [TypeOrmModule.forFeature([User])],
 })
 export class UserModule {}
