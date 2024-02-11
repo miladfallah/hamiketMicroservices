@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Inject,
   Post,
   Res,
@@ -12,13 +13,18 @@ import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { Redis } from 'ioredis'; // Assuming you're using ioredis
 import { CreateUserDto } from 'apps/user/src/dtos/create-user.dto';
-@Controller()
+@Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
     @Inject('USER_SERVICE') private readonly userServiceClient: ClientProxy,
   ) {}
+
+  @Get()
+  getHello(): string {
+    return this.authService.getHello();
+  }
 
   @Post()
   async checkUserPasswordStatus(
@@ -44,6 +50,8 @@ export class AuthController {
   ): Promise<any> {
     try {
       const result = await this.authService.doAuth(createUserDto, verifyCode);
+      console.log(result);
+
       return result;
     } catch (error) {
       return error.getResponse();

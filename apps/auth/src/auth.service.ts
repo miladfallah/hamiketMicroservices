@@ -22,13 +22,24 @@ export class AuthService {
     @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
     private readonly jwtService: JwtService,
   ) {
+    // this.userServiceClient = ClientProxyFactory.create({
+    //   transport: Transport.RMQ,
+    //   options: {
+    //     urls: ['http://localhost:5672'],
+    //     queue: 'user_queue',
+    //   },
+
     this.userServiceClient = ClientProxyFactory.create({
-      transport: Transport.RMQ,
+      transport: Transport.TCP,
       options: {
-        urls: ['http://localhost:5672'],
-        queue: 'user_queue',
+        host: 'localhost',
+        port: 4001,
       },
     });
+  }
+
+  getHello(): string {
+    return 'Hello World!';
   }
 
   async doAuth(createUserDto: CreateUserDto, verifyCode: string): Promise<any> {
@@ -84,6 +95,8 @@ export class AuthService {
           .send({ cmd: 'getUserInfoByMobileNum' }, createUserDto.mobileNumber)
           .toPromise();
         if (userRecord) {
+          console.log(userRecord);
+
           if (userRecord.active === '0') {
             throw new HttpException(
               { state: false, errorCode: -14, message: 'user is not active!' },
@@ -107,23 +120,26 @@ export class AuthService {
             status: 'login',
             successCode: '1',
           };
-        }
-        // else {
-        //   const userInfo = await this.mobileRegister(createUserDto);
-        //   const authToken = this.jwtService.sign({ id: userInfo.id });
+        } else {
+          console.log('sssssssssssssssss');
 
-        //   return {
-        //     state: true,
-        //     authToken,
-        //     userInfo,
-        //     status: 'register',
-        //     successCode: '2',
-        //   };
-        // }
+          //   const userInfo = await this.mobileRegister(createUserDto);
+          //   const authToken = this.jwtService.sign({ id: userInfo.id });
+
+          //   return {
+          //     state: true,
+          //     authToken,
+          //     userInfo,
+          //     status: 'register',
+          //     successCode: '2',
+          //   };
+        }
       } catch (error) {
+        console.error('Error in doAuth:', error);
+
         throw new HttpException(
-          { state: false, errorCode: -4, message: error },
-          HttpStatus.OK,
+          { state: false, errorCode: -4, message: 'Internal server error' },
+          HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
     }

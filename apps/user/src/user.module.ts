@@ -10,16 +10,26 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
   imports: [
     TypeOrmModule.forFeature([User]),
     DatabaseModule,
+    //   ClientsModule.register([
+    //     {
+    //       name: 'USER_SERVICE',
+    //       transport: Transport.RMQ,
+    //       options: {
+    //         urls: ['http://localhost:5672'], // Replace with your RabbitMQ server URL
+    //         queue: 'user_queue',
+    //         queueOptions: {
+    //           durable: false,
+    //         },
+    //       },
+    //     },
+    //   ]),
     ClientsModule.register([
       {
         name: 'USER_SERVICE',
-        transport: Transport.RMQ,
+        transport: Transport.TCP, // Change transport to TCP
         options: {
-          urls: ['http://localhost:5672'], // Replace with your RabbitMQ server URL
-          queue: 'user_queue',
-          queueOptions: {
-            durable: false,
-          },
+          host: 'localhost', // Specify the host of your microservice
+          port: 4001, // Specify the port of your microservice
         },
       },
     ]),

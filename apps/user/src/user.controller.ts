@@ -29,7 +29,7 @@ export class UserController {
   @Post()
   async create(
     @Body(new ValidationPipe()) createUserDto: CreateUserDto,
-  ): Promise<User> {
+  ): Promise<any> {
     try {
       const nowDate: number = new Date().getTime() / 1000;
 
@@ -45,12 +45,15 @@ export class UserController {
         updatedAt: nowDate,
       });
 
-      return user;
+      return {
+        state: true,
+        user,
+      };
     } catch (error) {
       if (error instanceof ConflictException) {
         // Handle conflict (username already taken) error
         throw new HttpException(
-          { message: 'Username is already taken' },
+          { state: false, message: 'Username is already taken' },
           HttpStatus.CONFLICT,
         );
       } else {

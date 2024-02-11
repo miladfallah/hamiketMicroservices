@@ -41,14 +41,26 @@ export class UserService {
   }
 
   @MessagePattern({ cmd: 'getUserInfoByMobileNum' })
-  async getUserInfoByMobileNum(mobile: string): Promise<User | undefined> {
+  async getUserInfoByMobileNum(
+    mobileNumber: string,
+  ): Promise<User | undefined> {
     try {
-      const userRecord = await this.getUserInfoByMobileNum(mobile);
+      const userRecord = await this.userRepository.findOneBy({ mobileNumber });
+
+      if (!userRecord) {
+        throw new HttpException(
+          { state: false, errorCode: -1, message: 'User not found' },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
       return userRecord;
-    } catch (err) {
+    } catch (error) {
+      console.error('Error in getUserInfoByMobileNum:', error);
+
       throw new HttpException(
-        { state: false, errorCode: -4, message: err },
-        HttpStatus.OK,
+        { state: false, errorCode: -4, message: 'Internal server error' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

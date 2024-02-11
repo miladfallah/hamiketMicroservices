@@ -10,16 +10,26 @@ import { JwtModule } from '@nestjs/jwt';
   imports: [
     RedisModule,
     UserModule, // Import the UserModule or the module containing UserRepository here
+    // ClientsModule.register([
+    //   {
+    //     name: 'USER_SERVICE',
+    //     transport: Transport.RMQ,
+    //     options: {
+    //       urls: ['amqp://localhost:5672'],
+    //       queue: 'user_queue',
+    //       queueOptions: {
+    //         durable: false,
+    //       },
+    //     },
+    //   },
+    // ]),
     ClientsModule.register([
       {
         name: 'USER_SERVICE',
-        transport: Transport.RMQ,
+        transport: Transport.TCP, // Change transport to TCP
         options: {
-          urls: ['amqp://localhost:5672'],
-          queue: 'user_queue',
-          queueOptions: {
-            durable: false,
-          },
+          host: 'localhost', // Specify the host of your microservice
+          port: 4001, // Specify the port of your microservice
         },
       },
     ]),
