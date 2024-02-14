@@ -1,47 +1,20 @@
 import {
   Body,
   Controller,
-  Get,
+  HttpException,
+  HttpStatus,
   Inject,
   Post,
-  Res,
-  ValidationPipe,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { Response } from 'express';
-import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
 import { Redis } from 'ioredis'; // Assuming you're using ioredis
 import { CreateUserDto } from 'apps/user/src/dtos/create-user.dto';
-@Controller('auth')
+@Controller('v1/auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
-    @Inject('USER_SERVICE') private readonly userServiceClient: ClientProxy,
   ) {}
-
-  @Get()
-  getHello(): string {
-    return this.authService.getHello();
-  }
-
-  @Post()
-  async checkUserPasswordStatus(
-    @Body(new ValidationPipe()) input: { mobileNumber: string },
-    @Res() res: Response,
-  ): Promise<void> {
-    try {
-      const response = await firstValueFrom(
-        this.userServiceClient.send({ cmd: 'checkUserPasswordStatus' }, input),
-      );
-
-      res.json(response);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Internal Server Error' });
-    }
-  }
 
   @Post('doAuth')
   async doAuth(
@@ -49,12 +22,16 @@ export class AuthController {
     @Body('verifyCode') verifyCode: string,
   ): Promise<any> {
     try {
-      const result = await this.authService.doAuth(createUserDto, verifyCode);
-      console.log(result);
-
-      return result;
+      return await this.authService.doAuth(createUserDto, verifyCode);
     } catch (error) {
-      return error.getResponse();
+      if (error instanceof HttpException) {
+        throw error;
+      } else {
+        throw new HttpException(
+          { state: false, errorCode: -4, message: 'Internal server error' },
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
     }
   }
 }

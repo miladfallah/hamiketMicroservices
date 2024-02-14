@@ -1,250 +1,220 @@
-import { Injectable, HttpStatus, HttpException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  HttpStatus,
+  HttpException,
+  Inject,
+  NotFoundException,
+} from '@nestjs/common';
 import { Redis } from 'ioredis';
-import { JwtService } from '@nestjs/jwt';
 import { HideHelpStatus } from '@app/common/Enums';
 import { User } from 'apps/user/src/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from 'apps/user/src/dtos/create-user.dto';
-import {
-  ClientProxy,
-  ClientProxyFactory,
-  Transport,
-} from '@nestjs/microservices';
+import { ClientProxy } from '@nestjs/microservices';
+import { USER_SERVICE } from '@app/common';
+import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
-  private readonly userServiceClient: ClientProxy;
-
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @Inject('REDIS_CLIENT') private readonly redisClient: Redis,
+    @Inject(USER_SERVICE) private readonly userServiceClient: ClientProxy,
     private readonly jwtService: JwtService,
-  ) {
-    // this.userServiceClient = ClientProxyFactory.create({
-    //   transport: Transport.RMQ,
-    //   options: {
-    //     urls: ['http://localhost:5672'],
-    //     queue: 'user_queue',
-    //   },
-
-    this.userServiceClient = ClientProxyFactory.create({
-      transport: Transport.TCP,
-      options: {
-        host: 'localhost',
-        port: 4001,
-      },
-    });
-  }
-
-  getHello(): string {
-    return 'Hello World!';
-  }
+  ) {}
 
   async doAuth(createUserDto: CreateUserDto, verifyCode: string): Promise<any> {
+    try {
+      this.validateInputs(createUserDto, verifyCode);
+
+      if (verifyCode) {
+        await this.validateVerificationCode(
+          createUserDto.mobileNumber,
+          verifyCode,
+        );
+
+        const userRecord = await this.getUserRecord(createUserDto.mobileNumber);
+
+        if (!userRecord) {
+          throw new NotFoundException('User not found');
+        }
+
+        if (userRecord.active === '0') {
+          throw new HttpException(
+            { state: false, errorCode: -14, message: 'User is not active!' },
+            HttpStatus.OK,
+          );
+        }
+
+        await this.userRepository.update(
+          { id: userRecord.id },
+          { hideHelp: HideHelpStatus.False },
+        );
+
+        const authToken = this.generateToken(userRecord);
+        await this.saveTokenInRedis(authToken, userRecord.id);
+        return {
+          state: true,
+          status: 'login',
+          authToken,
+          successCode: '1',
+        };
+      } else if (createUserDto.password) {
+        const userInfo = await this.getUserRecord(createUserDto.mobileNumber);
+        if (!userInfo) {
+          throw new HttpException(
+            { state: true, data: 'user not found' },
+            HttpStatus.OK,
+          );
+        } else {
+          try {
+            await this.comparePassword(
+              createUserDto.password,
+              userInfo.password,
+            );
+            userInfo.password = null;
+
+            const authToken = this.generateToken(userInfo);
+            await this.saveTokenInRedis(authToken, userInfo.id);
+            return {
+              state: true,
+              data: {
+                authToken,
+                userInfo,
+                status: 'login',
+              },
+            };
+          } catch (err) {
+            throw new HttpException(
+              {
+                state: true,
+                data: { state: false, message: 'wrong password!' },
+              },
+              HttpStatus.OK,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      // throw this.handleAuthError(error);
+      throw error;
+    }
+  }
+
+  private validateInputs(
+    createUserDto: CreateUserDto,
+    verifyCode: string,
+  ): void {
     if (!createUserDto.mobileNumber) {
       throw new HttpException(
         { state: false, errorCode: -1, message: 'Mobile number is empty' },
-        HttpStatus.OK,
+        HttpStatus.BAD_REQUEST,
       );
     }
 
     if (!verifyCode && !createUserDto.password) {
       throw new HttpException(
-        { state: false, errorCode: -100, message: 'Invalid request' },
-        HttpStatus.OK,
+        { state: false, errorCode: -2, message: 'Invalid request' },
+        HttpStatus.BAD_REQUEST,
       );
     }
-
-    const mobile = createUserDto.mobileNumber;
-    if (verifyCode) {
-      const redisKey = `verifyCode:${verifyCode}`;
-
-      if (verifyCode !== '224466') {
-        const redisVal = await this.redisClient.get(redisKey);
-
-        console.log(redisVal);
-
-        if (redisVal === null) {
-          throw new HttpException(
-            {
-              state: false,
-              errorCode: -2,
-              message: 'Invalid verification code',
-            },
-            HttpStatus.OK,
-          );
-        }
-
-        if (redisVal !== mobile) {
-          throw new HttpException(
-            {
-              state: false,
-              errorCode: -3,
-              message: 'Invalid verification code',
-            },
-            HttpStatus.OK,
-          );
-        }
-
-        await this.redisClient.expire(redisKey, 1);
-      }
-      try {
-        const userRecord = await this.userServiceClient
-          .send({ cmd: 'getUserInfoByMobileNum' }, createUserDto.mobileNumber)
-          .toPromise();
-        if (userRecord) {
-          console.log(userRecord);
-
-          if (userRecord.active === '0') {
-            throw new HttpException(
-              { state: false, errorCode: -14, message: 'user is not active!' },
-              HttpStatus.OK,
-            );
-          }
-
-          const authToken = this.jwtService.sign({ id: userRecord.id });
-
-          await this.userRepository.update(
-            { id: userRecord.id },
-            { hideHelp: HideHelpStatus.False },
-          );
-
-          // const userInfo = await this.populateUserInfo(userRecord.id);
-
-          return {
-            state: true,
-            authToken,
-            // userInfo,
-            status: 'login',
-            successCode: '1',
-          };
-        } else {
-          console.log('sssssssssssssssss');
-
-          //   const userInfo = await this.mobileRegister(createUserDto);
-          //   const authToken = this.jwtService.sign({ id: userInfo.id });
-
-          //   return {
-          //     state: true,
-          //     authToken,
-          //     userInfo,
-          //     status: 'register',
-          //     successCode: '2',
-          //   };
-        }
-      } catch (error) {
-        console.error('Error in doAuth:', error);
-
-        throw new HttpException(
-          { state: false, errorCode: -4, message: 'Internal server error' },
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-    }
-    // else if (createUserDto.password) {
-    //   const userInfo = await this.userRepository.findOne({
-    //     where: { mobileNumber: createUserDto.mobileNumber },
-    //   });
-
-    //   if (!userInfo) {
-    //     throw new HttpException(
-    //       { state: true, data: 'user not found' },
-    //       HttpStatus.OK,
-    //     );
-    //   } else {
-    //     try {
-    //       await this.comparePassword(createUserDto.password, userInfo.password);
-    //       const authToken = this.jwtService.sign({ id: userInfo.id });
-    //       await this.saveTokenInRedis(authToken, userInfo.id);
-    //       userInfo.password = null;
-
-    //       return {
-    //         state: true,
-    //         data: { authToken, userInfo, status: 'login' },
-    //       };
-    //     } catch (err) {
-    //       throw new HttpException(
-    //         { state: true, data: { state: false, message: 'wrong password!' } },
-    //         HttpStatus.OK,
-    //       );
-    //     }
-    //   }
-    // }
   }
 
-  //   private async getUserInfoByMobileNum(mobile: string): Promise<any> {
-  //     return new Promise((resolve, reject) => {
-  //       const userInfo = await this.client.send(
-  //         { cmd: 'getUserInfoByMobileNum' },
-  //         createUserDto.mobileNumber,
-  //       ).toPromise();
-  //   }
-  // }
+  private async validateVerificationCode(
+    mobileNumber: string,
+    verifyCode: string,
+  ): Promise<void> {
+    if (verifyCode !== '224466') {
+      const redisKey = `verifyCode:${verifyCode}`;
+      const redisVal = await this.redisClient.get(redisKey);
 
-  //   private async mobileRegister(data: any): Promise<any> {
-  //     return new Promise((resolve, reject) => {
-  //       User.mobileRegister(data, (err, userInfo) => {
-  //         if (err) {
-  //           reject(
-  //             new HttpException(
-  //               { state: false, errorCode: -5, message: err },
-  //               HttpStatus.OK,
-  //             ),
-  //           );
-  //         } else {
-  //           resolve(userInfo);
-  //         }
-  //       });
-  //     });
-  //   }
+      if (redisVal === null || redisVal !== mobileNumber) {
+        throw new HttpException(
+          { state: false, errorCode: -3, message: 'Invalid verification code' },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-  //   private async populateUserInfo(userId: string): Promise<any> {
-  //     return User.findOne({ id: userId })
-  //       .populate('sellerAddress')
-  //       .populate('legalSeller')
-  //       .populate('sellerSignature')
-  //       .populate('sellerDocument');
-  //   }
+      await this.redisClient.expire(redisKey, 1);
+    }
+  }
 
-  //   private async comparePassword(
-  //     password: string,
-  //     hashedPassword: string,
-  //   ): Promise<void> {
-  //     return new Promise((resolve, reject) => {
-  //       User.comparePassword(password, hashedPassword, (err) => {
-  //         if (err) {
-  //           reject(
-  //             new HttpException(
-  //               { state: false, errorCode: -6, message: err },
-  //               HttpStatus.OK,
-  //             ),
-  //           );
-  //         } else {
-  //           resolve();
-  //         }
-  //       });
-  //     });
-  //   }
+  private async getUserRecord(mobileNumber: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const userRecordObservable = this.userServiceClient.send(
+        'get_userinfo_by_mobile_number',
+        mobileNumber,
+      );
+      userRecordObservable.subscribe({
+        next: (userRecord: any) => {
+          resolve(userRecord);
+        },
+        error: (error) => {
+          reject(error);
+        },
+      });
+    });
+  }
 
-  //   private async saveTokenInRedis(
-  //     authToken: string,
-  //     userId: number,
-  //   ): Promise<void> {
-  //     return new Promise((resolve, reject) => {
-  //       User.saveTokenInRedis(authToken, userId, (err) => {
-  //         if (err) {
-  //           reject(
-  //             new HttpException(
-  //               { state: false, errorCode: -6, message: err },
-  //               HttpStatus.OK,
-  //             ),
-  //           );
-  //         } else {
-  //           resolve();
-  //         }
-  //       });
-  //     });
-  //   }
+  async comparePassword(
+    plainPassword: string,
+    hashedPassword: string,
+  ): Promise<boolean> {
+    console.log('🚀 ~ hashedPassword:', hashedPassword);
+    console.log('🚀 ~ plainPassword:', plainPassword);
+    try {
+      const match = await bcrypt.compare(plainPassword, hashedPassword);
+      console.log('🚀 ~ match:', match);
+      if (match) return match;
+      else throw new Error('Invalid plain password!');
+    } catch (error) {
+      // Handle any errors that might occur during the comparison
+      throw new HttpException(
+        { state: false, errorCode: -4, message: 'Internal server error' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  private generateToken(user: any): string {
+    const payload = { sub: user.id };
+    return this.jwtService.sign(payload);
+  }
+
+  private async saveTokenInRedis(token: string, userId: string): Promise<void> {
+    const redisKey = `authToken:${userId}`;
+    await this.redisClient.set(redisKey, token, 'EX', 3600); // Adjust the expiration time as needed
+  }
+
+  generateRandomSecretKey(length: number = 32): string {
+    return crypto.randomBytes(length).toString('hex');
+  }
 }
+//   private async mobileRegister(data: any): Promise<any> {
+//     return new Promise((resolve, reject) => {
+//       User.mobileRegister(data, (err, userInfo) => {
+//         if (err) {
+//           reject(
+//             new HttpException(
+//               { state: false, errorCode: -5, message: err },
+//               HttpStatus.OK,
+//             ),
+//           );
+//         } else {
+//           resolve(userInfo);
+//         }
+//       });
+//     });
+//   }
+
+//   private async populateUserInfo(userId: string): Promise<any> {
+//     return User.findOne({ id: userId })
+//       .populate('sellerAddress')
+//       .populate('legalSeller')
+//       .populate('sellerSignature')
+//       .populate('sellerDocument');
+//   }

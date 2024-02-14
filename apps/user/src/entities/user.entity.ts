@@ -1,6 +1,12 @@
 // src/user/entities/user.entity.ts
 
-import { Entity, PrimaryGeneratedColumn, Column, Unique } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  Unique,
+  BeforeInsert,
+} from 'typeorm';
 import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 import {
   ActiveStatus,
@@ -8,6 +14,8 @@ import {
   HideHelpStatus,
   UserType,
 } from '@app/common/Enums';
+
+import { hash } from 'bcrypt';
 @Entity('user')
 export class User {
   @PrimaryGeneratedColumn() // Enforce uniqueness for id
@@ -37,6 +45,11 @@ export class User {
   @IsString()
   @IsNotEmpty()
   password: string;
+
+  @BeforeInsert()
+  async hashedPassword() {
+    this.password = await hash(this.password, 10);
+  }
 
   @Column()
   @IsString()

@@ -2,7 +2,6 @@ import {
   Body,
   ConflictException,
   Controller,
-  Get,
   HttpException,
   HttpStatus,
   Logger,
@@ -11,22 +10,15 @@ import {
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dtos/create-user.dto';
-import { User } from './entities/user.entity';
-import { MessagePattern } from '@nestjs/microservices';
+import { MessagePattern, Payload } from '@nestjs/microservices';
 import { ActiveStatus, HideHelpStatus, UserType } from '@app/common/Enums';
 
-@Controller('user')
+@Controller('v1/user')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
-
   constructor(private readonly userService: UserService) {}
 
-  @Get()
-  getHello(): string {
-    return this.userService.getHello();
-  }
-
-  @Post()
+  @Post('register')
   async create(
     @Body(new ValidationPipe()) createUserDto: CreateUserDto,
   ): Promise<any> {
@@ -66,26 +58,33 @@ export class UserController {
     }
   }
 
-  @MessagePattern({ cmd: 'checkUserPasswordStatus' })
-  async checkUserPasswordStatus(data: { mobileNumber: string }): Promise<any> {
+  @Post('checkUserPasswordStatus')
+  async checkUserPasswordStatus(
+    @Body(new ValidationPipe()) input: any,
+  ): Promise<any> {
     try {
-      const userExist = await this.userService.findUserByMobileNumber(
-        data.mobileNumber,
-      );
-
-      if (userExist) {
-        if (userExist.password !== null && userExist.password !== '') {
-          return { password: '2', userType: userExist.userType };
-        } else {
-          return { password: '1', userType: userExist.userType };
-        }
-      } else {
-        return { password: '0', userType: '0' };
-      }
+      const userCheck = await this.userService.checkUserPasswordStatus(input);
+      return userCheck;
     } catch (error) {
-      // Handle errors appropriately
-      console.error(error);
-      return { password: 'error', userType: 'error' };
+      throw new HttpException(
+        { message: 'Internal Server Error' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
+  }
+
+  @MessagePattern('get_userinfo_by_mobile_number')
+  async getUserInfoByMobileNumber(@Payload() data: string) {
+    try {
+      return this.userService.getUserInfoByMobileNumber(data);
+    } catch (error) {
+      console.error(error);
+      throw new Error('Error processing message');
+    }
+  }
+
+  @MessagePattern('register_by_mobile_number')
+  async registerByMobileNumber(@Payload() data: string) {
+    return this.userService.registerByMobileNumber(data);
   }
 }

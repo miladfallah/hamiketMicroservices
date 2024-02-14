@@ -10,6 +10,11 @@ async function bootstrap() {
       host: '0.0.0.0',
       port: 4000,
     },
+    // transport: Transport.RMQ,
+    // options: {
+    //   urls: ['amqp://localhost:5672'], // Change the RabbitMQ connection URL accordingly
+    //   queue: 'auth_queue', // Change the queue name accordingly
+    // },
   });
   // app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   // app.useLogger(app.get(Logger));

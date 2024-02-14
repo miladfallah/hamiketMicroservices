@@ -8,8 +8,6 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateUserDto } from './dtos/create-user.dto';
-import { MessagePattern } from '@nestjs/microservices';
-
 @Injectable()
 export class UserService {
   constructor(
@@ -17,9 +15,6 @@ export class UserService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  getHello(): string {
-    return 'Hello World!';
-  }
   async create(createUserDto: CreateUserDto): Promise<User> {
     const { username } = createUserDto;
 
@@ -29,7 +24,6 @@ export class UserService {
       throw new ConflictException('Username is already taken');
     }
     const user = this.userRepository.create(createUserDto);
-    // createUserDto.picture = '';
     this.userRepository.save(user);
     return user;
   }
@@ -40,24 +34,48 @@ export class UserService {
     return this.userRepository.findOneBy({ mobileNumber });
   }
 
-  @MessagePattern({ cmd: 'getUserInfoByMobileNum' })
-  async getUserInfoByMobileNum(
-    mobileNumber: string,
-  ): Promise<User | undefined> {
+  async getUserInfoByMobileNumber(mobileNumber: string) {
     try {
       const userRecord = await this.userRepository.findOneBy({ mobileNumber });
-
-      if (!userRecord) {
-        throw new HttpException(
-          { state: false, errorCode: -1, message: 'User not found' },
-          HttpStatus.NOT_FOUND,
-        );
-      }
 
       return userRecord;
     } catch (error) {
       console.error('Error in getUserInfoByMobileNum:', error);
 
+      throw new HttpException(
+        { state: false, errorCode: -4, message: 'Internal server error' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async registerByMobileNumber(mobileNumber: string) {
+    try {
+      const nowDate: number = new Date().getTime() / 1000;
+
+      const user = await this.userRepository.create({
+        mobileNumber,
+        createdAt: nowDate,
+      });
+      return user;
+    } catch (error) {}
+  }
+
+  async checkUserPasswordStatus(input: any) {
+    const mobileNumber = input.mobileNumber;
+    try {
+      const userExist = await this.userRepository.findOneBy({ mobileNumber });
+
+      if (userExist) {
+        if (userExist.password !== null && userExist.password !== '') {
+          return { password: '2', userType: userExist.userType };
+        } else {
+          return { password: '1', userType: userExist.userType };
+        }
+      } else {
+        return { password: '0', userType: '0' };
+      }
+    } catch (error) {
       throw new HttpException(
         { state: false, errorCode: -4, message: 'Internal server error' },
         HttpStatus.INTERNAL_SERVER_ERROR,
