@@ -21,67 +21,71 @@ export class User {
   @PrimaryGeneratedColumn() // Enforce uniqueness for id
   id: number;
 
-  @Column()
+  @Column({ nullable: true })
   @IsString()
-  @IsNotEmpty()
   firstName: string;
 
-  @Column()
+  @Column({ nullable: true })
   @IsString()
-  @IsNotEmpty()
   lastName: string;
 
   @Column({ type: 'enum', enum: Gender, default: Gender.Male })
   @IsString()
-  @IsNotEmpty()
   gender: Gender;
 
-  @Column({ type: 'enum', enum: UserType, default: UserType.Customer })
+  @Column({
+    type: 'enum',
+    enum: UserType,
+    default: UserType.Customer,
+  })
   @IsString()
-  @IsNotEmpty()
   userType: UserType;
 
-  @Column()
+  @Column({ nullable: true })
   @IsString()
-  @IsNotEmpty()
   password: string;
 
   @BeforeInsert()
   async hashedPassword() {
-    this.password = await hash(this.password, 10);
+    if (this.password) {
+      this.password = await hash(this.password, 10);
+    }
   }
 
-  @Column()
+  @Column({ nullable: true })
   @IsString()
-  @IsNotEmpty()
   @Unique(['username'])
   username: string;
 
-  @Column()
+  @Column({ nullable: true })
   @IsEmail()
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
   @IsString()
   phoneNumber: string;
 
-  @Column()
+  @Column({ nullable: true })
   @IsString()
-  @IsNotEmpty()
   mobileNumber: string;
 
-  @Column()
+  @Column({ nullable: true })
   @IsString()
   nationalCode: string;
 
-  @Column()
+  @Column({ nullable: true })
   @IsString()
   picture: string;
 
-  @Column({ type: 'enum', enum: HideHelpStatus, default: HideHelpStatus.True })
+  @Column({
+    type: 'enum',
+    enum: HideHelpStatus,
+    default: HideHelpStatus.True,
+    nullable: true,
+  })
   hideHelp: HideHelpStatus;
 
-  @Column()
+  @Column({ nullable: true })
   lastSeen: number;
 
   @Column({ type: 'enum', enum: ActiveStatus, default: ActiveStatus.INACTIVE })

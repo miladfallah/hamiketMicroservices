@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  HttpStatus,
-  HttpException,
-  Inject,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus, HttpException, Inject } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { HideHelpStatus } from '@app/common/Enums';
 import { User } from 'apps/user/src/entities/user.entity';
@@ -16,6 +10,7 @@ import { USER_SERVICE } from '@app/common';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -39,30 +34,41 @@ export class AuthService {
 
         const userRecord = await this.getUserRecord(createUserDto.mobileNumber);
 
-        if (!userRecord) {
-          throw new NotFoundException('User not found');
-        }
+        if (userRecord) {
+          if (userRecord.active === '0') {
+            throw new HttpException(
+              { state: false, errorCode: -14, message: 'User is not active!' },
+              HttpStatus.OK,
+            );
+          }
 
-        if (userRecord.active === '0') {
-          throw new HttpException(
-            { state: false, errorCode: -14, message: 'User is not active!' },
-            HttpStatus.OK,
+          await this.userRepository.update(
+            { id: userRecord.id },
+            { hideHelp: HideHelpStatus.False },
           );
+
+          const authToken = this.generateToken(userRecord);
+          await this.saveTokenInRedis(authToken, userRecord.id);
+          return {
+            state: true,
+            status: 'login',
+            authToken,
+            successCode: '1',
+          };
+        } else if (!userRecord) {
+          const user = await this.mobileRegister(
+            createUserDto.mobileNumber,
+          ).toPromise();
+
+          const authToken = this.generateToken(user);
+          await this.saveTokenInRedis(authToken, user.id);
+          return {
+            state: true,
+            status: 'login',
+            authToken,
+            successCode: '1',
+          };
         }
-
-        await this.userRepository.update(
-          { id: userRecord.id },
-          { hideHelp: HideHelpStatus.False },
-        );
-
-        const authToken = this.generateToken(userRecord);
-        await this.saveTokenInRedis(authToken, userRecord.id);
-        return {
-          state: true,
-          status: 'login',
-          authToken,
-          successCode: '1',
-        };
       } else if (createUserDto.password) {
         const userInfo = await this.getUserRecord(createUserDto.mobileNumber);
         if (!userInfo) {
@@ -164,11 +170,8 @@ export class AuthService {
     plainPassword: string,
     hashedPassword: string,
   ): Promise<boolean> {
-    console.log('🚀 ~ hashedPassword:', hashedPassword);
-    console.log('🚀 ~ plainPassword:', plainPassword);
     try {
       const match = await bcrypt.compare(plainPassword, hashedPassword);
-      console.log('🚀 ~ match:', match);
       if (match) return match;
       else throw new Error('Invalid plain password!');
     } catch (error) {
@@ -193,23 +196,11 @@ export class AuthService {
   generateRandomSecretKey(length: number = 32): string {
     return crypto.randomBytes(length).toString('hex');
   }
+
+  private mobileRegister(data: any): Observable<any> {
+    return this.userServiceClient.send('register_by_mobile_number', data);
+  }
 }
-//   private async mobileRegister(data: any): Promise<any> {
-//     return new Promise((resolve, reject) => {
-//       User.mobileRegister(data, (err, userInfo) => {
-//         if (err) {
-//           reject(
-//             new HttpException(
-//               { state: false, errorCode: -5, message: err },
-//               HttpStatus.OK,
-//             ),
-//           );
-//         } else {
-//           resolve(userInfo);
-//         }
-//       });
-//     });
-//   }
 
 //   private async populateUserInfo(userId: string): Promise<any> {
 //     return User.findOne({ id: userId })

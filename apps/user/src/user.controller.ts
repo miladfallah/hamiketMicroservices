@@ -1,6 +1,6 @@
 import {
   Body,
-  ConflictException,
+  // ConflictException,
   Controller,
   HttpException,
   HttpStatus,
@@ -9,54 +9,54 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dtos/create-user.dto';
+// import { CreateUserDto } from './dtos/create-user.dto';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { ActiveStatus, HideHelpStatus, UserType } from '@app/common/Enums';
+// import { ActiveStatus, HideHelpStatus, UserType } from '@app/common/Enums';
 
 @Controller('v1/user')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
   constructor(private readonly userService: UserService) {}
 
-  @Post('register')
-  async create(
-    @Body(new ValidationPipe()) createUserDto: CreateUserDto,
-  ): Promise<any> {
-    try {
-      const nowDate: number = new Date().getTime() / 1000;
+  // @Post('register')
+  // async create(
+  //   @Body(new ValidationPipe()) createUserDto: CreateUserDto,
+  // ): Promise<any> {
+  //   try {
+  //     const nowDate: number = new Date().getTime() / 1000;
 
-      const user = await this.userService.create({
-        ...createUserDto,
-        // Set default values
-        picture: '',
-        lastSeen: -1,
-        active: ActiveStatus.INACTIVE,
-        userType: UserType.Customer,
-        hideHelp: HideHelpStatus.True,
-        createdAt: nowDate,
-        updatedAt: nowDate,
-      });
+  //     const user = await this.userService.create({
+  //       ...createUserDto,
+  //       // Set default values
+  //       picture: '',
+  //       lastSeen: -1,
+  //       active: ActiveStatus.INACTIVE,
+  //       userType: UserType.Customer,
+  //       hideHelp: HideHelpStatus.True,
+  //       createdAt: nowDate,
+  //       updatedAt: nowDate,
+  //     });
 
-      return {
-        state: true,
-        user,
-      };
-    } catch (error) {
-      if (error instanceof ConflictException) {
-        // Handle conflict (username already taken) error
-        throw new HttpException(
-          { state: false, message: 'Username is already taken' },
-          HttpStatus.CONFLICT,
-        );
-      } else {
-        // Handle other errors
-        throw new HttpException(
-          { message: 'Internal Server Error' },
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-    }
-  }
+  //     return {
+  //       state: true,
+  //       user,
+  //     };
+  //   } catch (error) {
+  //     if (error instanceof ConflictException) {
+  //       // Handle conflict (username already taken) error
+  //       throw new HttpException(
+  //         { state: false, message: 'Username is already taken' },
+  //         HttpStatus.CONFLICT,
+  //       );
+  //     } else {
+  //       // Handle other errors
+  //       throw new HttpException(
+  //         { message: 'Internal Server Error' },
+  //         HttpStatus.INTERNAL_SERVER_ERROR,
+  //       );
+  //     }
+  //   }
+  // }
 
   @Post('checkUserPasswordStatus')
   async checkUserPasswordStatus(

@@ -56,9 +56,14 @@ export class UserService {
       const user = await this.userRepository.create({
         mobileNumber,
         createdAt: nowDate,
+        updatedAt: nowDate,
       });
+      this.userRepository.save(user);
       return user;
-    } catch (error) {}
+    } catch (error) {
+      console.error('Registration failed');
+      throw new Error('Registration failed'); // Make sure the error message is consistent
+    }
   }
 
   async checkUserPasswordStatus(input: any) {
