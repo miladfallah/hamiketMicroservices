@@ -5,10 +5,13 @@ import {
   HttpStatus,
   Inject,
   Post,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Redis } from 'ioredis'; // Assuming you're using ioredis
-import { CreateUserDto } from 'apps/user/src/dtos/create-user.dto';
+import { CreateUserDto } from '../../user/src/dtos/create-user.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
 @Controller('v1/auth')
 export class AuthController {
   constructor(
@@ -32,6 +35,31 @@ export class AuthController {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+    }
+  }
+
+  @Post('forgetPassword')
+  async forget(@Body() data): Promise<any> {
+    try {
+      const result = await this.authService.forgetPassword(data);
+      return { result, message: 'verified successfully' };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  @Post('resetPassword')
+  @UseGuards(JwtAuthGuard)
+  async resetPass(@Body() input, @Request() req): Promise<any> {
+    const authenticatedUser = req.user; // Assuming userInfo is attached to the request
+    try {
+      const result = await this.authService.resetPassword(
+        input,
+        authenticatedUser,
+      );
+      return { result };
+    } catch (error) {
+      return { error };
     }
   }
 }

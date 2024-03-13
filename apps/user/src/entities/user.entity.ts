@@ -1,13 +1,7 @@
 // src/user/entities/user.entity.ts
 
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  Unique,
-  BeforeInsert,
-} from 'typeorm';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { Entity, PrimaryGeneratedColumn, Column, BeforeInsert } from 'typeorm';
+import { IsEmail, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 import {
   ActiveStatus,
   Gender,
@@ -53,11 +47,6 @@ export class User {
   }
 
   @Column({ nullable: true })
-  @IsString()
-  @Unique(['username'])
-  username: string;
-
-  @Column({ nullable: true })
   @IsEmail()
   email: string;
 
@@ -72,6 +61,10 @@ export class User {
   @Column({ nullable: true })
   @IsString()
   nationalCode: string;
+
+  @Column()
+  @IsNumber()
+  birthDate: number;
 
   @Column({ nullable: true })
   @IsString()

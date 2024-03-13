@@ -1,10 +1,10 @@
 import { Injectable, HttpStatus, HttpException, Inject } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { HideHelpStatus } from '@app/common/Enums';
-import { User } from 'apps/user/src/entities/user.entity';
+import { User } from '../../user/src/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateUserDto } from 'apps/user/src/dtos/create-user.dto';
+import { CreateUserDto } from '../../user/src/dtos/create-user.dto';
 import { ClientProxy } from '@nestjs/microservices';
 import { USER_SERVICE } from '@app/common';
 import * as bcrypt from 'bcrypt';
@@ -199,6 +199,79 @@ export class AuthService {
 
   private mobileRegister(data: any): Observable<any> {
     return this.userServiceClient.send('register_by_mobile_number', data);
+  }
+
+  async forgetPassword(data): Promise<any> {
+    if (!data.mobileNumber) {
+      throw new Error('Invalid mobileNumber');
+    }
+
+    try {
+      if (!data.verifyCode) {
+        throw new Error('Invalid verification code');
+      } else if (data.verifyCode) {
+        await this.validateVerificationCode(data.mobileNumber, data.verifyCode);
+      }
+      const userInfo = await this.getUserRecord(data.mobileNumber);
+      if (!userInfo) {
+        throw new HttpException(
+          { state: true, data: 'user not found' },
+          HttpStatus.OK,
+        );
+      }
+      const authToken = this.generateToken(userInfo);
+      await this.saveTokenInRedis(authToken, userInfo.id);
+      return {
+        state: true,
+        status: 'login',
+        authToken,
+        successCode: '1',
+      };
+    } catch (err) {
+      throw err;
+    }
+  }
+  ////////////////////////////////////////////
+  async resetPassword(input, userInfo): Promise<any> {
+    const password = input.password;
+    let newPassword = input.newPassword;
+    const confirmPassword = input.confirmPassword;
+
+    if (password) {
+      await this.comparePassword(password, userInfo.password);
+    }
+
+    return new Promise((resolve, reject) => {
+      bcrypt.genSalt(10, (err, salt) => {
+        if (err) {
+          // Handle error appropriately
+          return reject(err);
+        }
+
+        if (newPassword !== confirmPassword) {
+          return reject({ state: false, message: 'misMatch password' });
+        }
+
+        bcrypt.hash(newPassword, salt, async (err, hash) => {
+          if (err) {
+            // Handle error appropriately
+            return reject(err);
+          }
+
+          newPassword = hash; // Here is our encrypted password
+
+          try {
+            await this.userRepository.update(
+              { mobileNumber: userInfo.mobileNumber },
+              { password: newPassword },
+            );
+            resolve({ state: true });
+          } catch (error) {
+            reject({ state: false });
+          }
+        });
+      });
+    });
   }
 }
 
