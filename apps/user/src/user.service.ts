@@ -1,13 +1,8 @@
-import {
-  ConflictException,
-  HttpException,
-  HttpStatus,
-  Injectable,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CreateUserDto } from './dtos/create-user.dto';
+import { UpdateUserDto } from './dtos/update-user.dto';
 @Injectable()
 export class UserService {
   constructor(
@@ -15,18 +10,18 @@ export class UserService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const { username } = createUserDto;
+  // async create(createUserDto: CreateUserDto): Promise<User> {
+  //   const { username } = createUserDto;
 
-    // Check if username is already taken
-    const existingUser = await this.userRepository.findOneBy({ username });
-    if (existingUser) {
-      throw new ConflictException('Username is already taken');
-    }
-    const user = this.userRepository.create(createUserDto);
-    this.userRepository.save(user);
-    return user;
-  }
+  //   // Check if username is already taken
+  //   const existingUser = await this.userRepository.findOneBy({ username });
+  //   if (existingUser) {
+  //     throw new ConflictException('Username is already taken');
+  //   }
+  //   const user = this.userRepository.create(createUserDto);
+  //   this.userRepository.save(user);
+  //   return user;
+  // }
 
   async findUserByMobileNumber(
     mobileNumber: string,
@@ -85,6 +80,43 @@ export class UserService {
         { state: false, errorCode: -4, message: 'Internal server error' },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  async completeRegister(
+    userId: number,
+    updateUserDto: UpdateUserDto,
+  ): Promise<User> {
+    // try {
+    //   const userToUpdate = await this.userRepository.findOneBy({ id: userId });
+
+    //   // Apply updates from the DTO
+    //   const fieldsToUpdate = Object.keys(updateUserDto);
+
+    //   fieldsToUpdate.forEach((field) => {
+    //     if (updateUserDto[field]) {
+    //       userToUpdate[field] = updateUserDto[field];
+    //     }
+    //   });
+
+    //   // Save the updated user
+    //   return await this.userRepository.save(userToUpdate);
+    // } catch (error) {
+    //   throw new Error('Error completeRegister: ' + error);
+    // }
+    try {
+      const result = await this.userRepository.update(
+        { id: userId },
+        updateUserDto,
+      );
+      if (result.affected === 1) {
+        return await this.userRepository.findOneBy({ id: userId });
+      } else {
+        // Handle the case when the update didn't affect any rows (id not found, for example)
+        throw new Error(`User with id ${userId} not found`);
+      }
+    } catch (error) {
+      throw new Error('Error updating user: ' + error);
     }
   }
 }

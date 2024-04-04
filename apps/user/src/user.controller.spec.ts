@@ -9,6 +9,8 @@ import {
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { UpdateUserDto } from './dtos/update-user.dto';
+import { ActiveStatus, Gender, HideHelpStatus, UserType } from '@app/common';
 // import { ActiveStatus, Gender, HideHelpStatus, UserType } from '@app/common';
 
 describe('UserController', () => {
@@ -218,6 +220,89 @@ describe('UserController', () => {
       await expect(
         userController.registerByMobileNumber(mockMobileNumber),
       ).rejects.toThrow('Registration failed');
+    });
+  });
+
+  describe('completeRegister', () => {
+    it('should update user and return updated user', async () => {
+      // Arrange
+      const userId = 1;
+      const updateUserDto: UpdateUserDto = {
+        password: '12345678',
+        email: 'falahmilad79@gmail.com',
+        nationalCode: '4900893714',
+        firstName: 'milad',
+        lastName: 'fallah',
+        gender: Gender.Male,
+        phoneNumber: '02165753601',
+        mobileNumber: '09941108375',
+        id: 1,
+        userType: UserType.Seller,
+        picture: 'https://i.ibb.co/z4z4z4z/user.png',
+        hideHelp: HideHelpStatus.True,
+        lastSeen: 1629499200000,
+        active: ActiveStatus.ACTIVE,
+        // createdAt: 1629499200000,
+        updatedAt: 1629499200000,
+      };
+
+      const updatedUserMock: any = {
+        id: 1,
+        ...updateUserDto,
+        hashedPassword: '123' as any,
+      };
+
+      jest
+        .spyOn(userService, 'completeRegister')
+        .mockResolvedValue(updatedUserMock);
+
+      // Act
+      const result = await userController.completeRegister(
+        { user: { id: userId } },
+        updateUserDto,
+      );
+
+      // Assert
+      expect(result).toEqual(updatedUserMock);
+      expect(userService.completeRegister).toHaveBeenCalledWith(
+        userId,
+        updateUserDto,
+      );
+    });
+
+    it('should handle error and return Internal Server Error', async () => {
+      // Arrange
+      const userId = 1;
+      const updateUserDto: UpdateUserDto = {
+        password: '12345678',
+        email: 'falahmilad79@gmail.com',
+        nationalCode: '4900893714',
+        firstName: 'milad',
+        lastName: 'fallah',
+        gender: Gender.Male,
+        phoneNumber: '02165753601',
+        mobileNumber: '09941108375',
+        id: 1,
+        userType: UserType.Seller,
+        picture: 'https://i.ibb.co/z4z4z4z/user.png',
+        hideHelp: HideHelpStatus.True,
+        lastSeen: 1629499200000,
+        active: ActiveStatus.ACTIVE,
+        // createdAt: 1629499200000,
+        updatedAt: 1629499200000,
+      };
+
+      jest
+        .spyOn(userService, 'completeRegister')
+        .mockRejectedValue(new Error('Error updating user'));
+
+      // Act & Assert
+      await expect(
+        userController.completeRegister(
+          { user: { id: userId } },
+          updateUserDto,
+        ),
+      ).rejects.toThrow('Internal Server Error');
     });
   });
 });

@@ -6,11 +6,16 @@ import {
   HttpStatus,
   Logger,
   Post,
+  UseGuards,
   ValidationPipe,
+  Request,
+  Patch,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 // import { CreateUserDto } from './dtos/create-user.dto';
 import { MessagePattern, Payload } from '@nestjs/microservices';
+import { JwtAuthGuard } from '../../auth/src/jwt-auth.guard';
+import { UpdateUserDto } from './dtos/update-user.dto';
 // import { ActiveStatus, HideHelpStatus, UserType } from '@app/common/Enums';
 
 @Controller('v1/user')
@@ -57,7 +62,26 @@ export class UserController {
   //     }
   //   }
   // }
-
+  @Patch('completeRegister')
+  @UseGuards(JwtAuthGuard)
+  async completeRegister(
+    @Request() req,
+    @Body(new ValidationPipe()) updateUserDto: UpdateUserDto,
+  ): Promise<any> {
+    const authenticatedUser = req.user;
+    try {
+      const updatedUser = await this.userService.completeRegister(
+        authenticatedUser.id,
+        updateUserDto,
+      );
+      return updatedUser;
+    } catch (error) {
+      throw new HttpException(
+        { message: 'Internal Server Error' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
   @Post('checkUserPasswordStatus')
   async checkUserPasswordStatus(
     @Body(new ValidationPipe()) input: any,

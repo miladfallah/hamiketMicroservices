@@ -15,7 +15,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
     UserModule,
     PassportModule,
     JwtModule.register({
-      secret: 'your-secret-key', // Replace with your own secret key
+      secret: 'secret', // Replace with your own secret key
     }),
 
     ClientsModule.registerAsync([
@@ -34,5 +34,6 @@ import { JwtAuthGuard } from './jwt-auth.guard';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],
+  exports: [AuthService, JwtAuthGuard],
 })
 export class AuthModule {}

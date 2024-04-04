@@ -13,11 +13,9 @@ import {
   IsEnum,
   IsMobilePhone,
   IsOptional,
+  IsNumber,
 } from 'class-validator';
-import { Unique } from 'typeorm';
 
-@Unique(['id'])
-@Unique(['username'])
 export class CreateUserDto {
   readonly id: number;
 
@@ -43,10 +41,6 @@ export class CreateUserDto {
   @MinLength(8, { message: 'password at least 8' })
   readonly password: string;
 
-  @IsString()
-  @MinLength(6, { message: 'username at least 6' })
-  readonly username: string;
-
   @IsEmail()
   readonly email: string;
 
@@ -61,6 +55,9 @@ export class CreateUserDto {
   @IsString({ message: 'National Code must be a string' })
   @Length(10, 10, { message: 'National Code must be exactly 10 digits long' })
   readonly nationalCode: string;
+
+  @IsNumber()
+  readonly birthDate: number;
 
   @IsString()
   @IsOptional()
