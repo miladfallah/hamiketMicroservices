@@ -29,14 +29,14 @@ export class User {
   @IsString()
   lastName: string;
 
-  @Column({ type: 'enum', enum: Gender, default: Gender.Male })
+  @Column({ type: 'enum', enum: Gender, default: Gender.MALE })
   @IsString()
   gender: Gender;
 
   @Column({
     type: 'enum',
     enum: UserType,
-    default: UserType.Customer,
+    default: UserType.CUSTOMER,
   })
   @IsString()
   userType: UserType;
@@ -80,7 +80,7 @@ export class User {
   @Column({
     type: 'enum',
     enum: HideHelpStatus,
-    default: HideHelpStatus.True,
+    default: HideHelpStatus.TRUE,
     nullable: true,
   })
   hideHelp: HideHelpStatus;
