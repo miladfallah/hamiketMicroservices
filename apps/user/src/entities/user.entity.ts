@@ -38,6 +38,7 @@ export class User {
   @Column({ nullable: true })
   @IsString()
   password: string;
+  role: any;
 
   @BeforeInsert()
   async hashedPassword() {

@@ -1,0 +1,52 @@
+version: '3'
+services:
+  admin:
+    build:
+      context: ./apps/admin
+      dockerfile: Dockerfile
+    ports:
+      - '3002:4002' # Map port 4002 inside the container to port 3002 on the host
+    networks:
+      - mynetwork
+    volumes:
+      - './apps/admin:/usr/src/app'
+      - './libs/common:/usr/src/common'
+
+  user:
+    build:
+      context: ./apps/user
+      dockerfile: Dockerfile
+    ports:
+      - '3001:4001' # Map port 4001 inside the container to port 3001 on the host
+    networks:
+      - mynetwork
+    volumes:
+      - './apps/user:/usr/src/app'
+      - './libs/common:/usr/src/common'
+
+  auth:
+    build:
+      context: ./apps/auth
+      dockerfile: Dockerfile
+    ports:
+      - '3000:4000' # Map port 4000 inside the container to port 3000 on the host
+    networks:
+      - mynetwork
+    volumes:
+      - './apps/auth:/usr/src/app'
+      - './libs/common:/usr/src/common'
+
+  mysql:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: 4900893714
+    ports:
+      - '3307:3306'
+    networks:
+      - mynetwork
+    volumes:
+      - './mysql-data:/var/lib/mysql'
+
+networks:
+  mynetwork:
+    driver: bridge

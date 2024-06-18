@@ -12,6 +12,7 @@ import { AuthService } from './auth.service';
 import { Redis } from 'ioredis'; // Assuming you're using ioredis
 import { CreateUserDto } from '../../user/src/dtos/create-user.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+
 @Controller('v1/auth')
 export class AuthController {
   constructor(

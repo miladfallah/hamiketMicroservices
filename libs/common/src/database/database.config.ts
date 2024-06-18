@@ -1,6 +1,7 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../../../../apps/user/src/entities/user.entity';
+import { Admin } from 'apps/admin/src/entities/admin.entity';
 
 export const databaseConfig = async (
   configService: ConfigService,
@@ -12,7 +13,7 @@ export const databaseConfig = async (
   password: configService.get<string>('DB_PASSWORD', '4900893714'),
   database: configService.get<string>('DB_NAME', 'hamiket_microservices'),
   // entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-  entities: [User],
+  entities: [User, Admin],
 
   synchronize: configService.get<boolean>('DB_SYNCHRONIZE', true),
 });

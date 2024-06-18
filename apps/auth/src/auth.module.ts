@@ -9,10 +9,12 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { AdminModule } from 'apps/admin/src/admin.module';
 @Module({
   imports: [
     RedisModule,
     UserModule,
+    AdminModule,
     PassportModule,
     JwtModule.register({
       secret: 'secret', // Replace with your own secret key

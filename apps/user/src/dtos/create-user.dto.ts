@@ -72,7 +72,7 @@ export class CreateUserDto {
   readonly lastSeen: number;
 
   @IsEnum(ActiveStatus, {
-    message: 'active status should be 0(inactive or 1(active))',
+    message: 'active status should be 0(inactive) or 1(active)',
   })
   @IsOptional()
   readonly active: ActiveStatus;
